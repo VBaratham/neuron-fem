@@ -19,18 +19,20 @@ import fenics as fe
 from mshr import Box, Cylinder, generate_mesh, Rectangle, Circle
 import matplotlib.pyplot as plt
 
-BOX_SIZE = 100
-MESH_PTS = 1024
+BOX_SIZE = 1
+CYL_X, CYL_Y, CYL_Z1, CYL_Z2 = 0.5, 0.5, 0.1, 0.3
+CYL_R = 0.05
+MESH_PTS = 256
 CONDUCTIVITY = 0.3 # S/m
-CURRENT = 0.5 # idk what units
+CURRENT = 0.01 # idk what units
 
 # Define solution domain
 # box = Box(fe.Point(0, 0, 0), fe.Point(BOX_SIZE, BOX_SIZE, BOX_SIZE))
-# cylinder = Cylinder(fe.Point(50, 50, 10), fe.Point(50, 50, 30), 5.0, 5.0)
+# cylinder = Cylinder(fe.Point(CYL_X, CYL_Y, CYL_Z1), fe.Point(CYL_X, CYL_Y, CYL_Z1), CYL_R, CYL_R)
 
 # DEBUG
 box = Rectangle(fe.Point(0, 0), fe.Point(BOX_SIZE, BOX_SIZE))
-cylinder = Circle(fe.Point(50,10), 5.0)
+cylinder = Circle(fe.Point(CYL_X, CYL_Y), CYL_R)
 # END DEBUG
 
 domain = box - cylinder
@@ -64,8 +66,8 @@ class BoundaryVals(fe.UserExpression):
         # rad_sq = (x[0] - 50)**2 + (x[1] - 10)**2
         # print(x, rad_sq)
         # value[0] = CURRENT
-        rad_sq = (x[0] - 50)**2 + (x[1] - 10)**2
-        if fe.near(rad_sq, 25):
+        rad_sq = (x[0] - CYL_X)**2 + (x[1] - CYL_Y)**2
+        if fe.near(rad_sq, CYL_R**2):
             value[0] = CURRENT
         else:
             value[0] = 0
@@ -82,7 +84,7 @@ LHS = sigma * fe.inner(fe.grad(Theta), fe.grad(v)) * fe.dx - boundary * v * fe.d
 # we use 0 as the RHS because
 #  - There are no sources (\rho = 0)
 #  - The Neumann condition on \partial\Theta_N is combined with the I_m term on the LHS
-fe.solve(LHS == 0, Theta)
+fe.solve(LHS == 0, Theta)#, solver_parameters={"newton_solver": {"relative_tolerance": 3.5}})
 
 # Plot solution
 fe.plot(Theta, "Solution")
