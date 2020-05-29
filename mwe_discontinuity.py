@@ -80,7 +80,10 @@ from mshr import *
 OMEGA_E = 1
 OMEGA_I = 2
 INTERFACE = 3
+LEFTEDGE = 4
+BOTTOMEDGE = 5
 
+# Create domain and mark subdomains
 Omega = Rectangle(Point(0, 0), Point(1, 1))
 Omega_i = Rectangle(Point(0.2, 0.2), Point(0.4, 0.4))
 Omega.set_subdomain(OMEGA_E, Omega - Omega_i)
@@ -88,6 +91,7 @@ Omega.set_subdomain(OMEGA_I, Omega_i)
 mesh = generate_mesh(Omega, 256)
 subdomains = MeshFunction("size_t", mesh, 2, mesh.domains())
 
+# Mark boundaries
 boundaries = MeshFunction("size_t", mesh, 1)
 for f in facets(mesh):
     p0 = Vertex(mesh, f.entities(0)[0])
@@ -99,6 +103,10 @@ for f in facets(mesh):
     on_edge = lambda x, y: on_vert_edge(x, y) or on_horiz_edge(x, y)
     if on_edge(x0, y0) and on_edge(x1, y1):
         boundaries[f] = INTERFACE
+    elif x0 < DOLFIN_EPS and x1 < DOLFIN_EPS:
+        boundaries[f] = LEFTEDGE
+    elif y0 < DOLFIN_EPS and y1 < DOLFIN_EPS:
+        boundaries[f] = BOTTOMEDGE
 
 # TEST
 # Define a function of ones on the mesh:
@@ -115,6 +123,7 @@ V = FunctionSpace(mesh, "Lagrange", 1)
 
 dx = Measure("dx")(subdomain_data=subdomains)
 dS = Measure("dS")(subdomain_data=boundaries)
+ds = Measure("ds")(subdomain_data=boundaries)
 
 Theta = Function(V)
 v = TestFunction(V)
@@ -125,10 +134,15 @@ LHS = inner(grad(Theta), grad(v)) * dx(OMEGA_E)
 LHS += inner(grad(Theta), grad(v)) * dx(OMEGA_I)
 LHS += inner(n('-'), grad(Theta('-'))) * v('-') * dS(INTERFACE)
 LHS -= inner(n('+'), grad(Theta('+'))) * v('+') * dS(INTERFACE)
+# LHS += 1.0 * v * ds(LEFTEDGE)
 
 # sol = Function(V)
-solve(LHS == 0, Theta)
+# solve(LHS == 0, Theta, solver_parameters={"newton_solver": {"absolute_tolerance": 6e-2}})
+solve(LHS == 0, Theta, [DirichletBC(V, 1.0, boundaries, LEFTEDGE),
+                        DirichletBC(V, 2.0, boundaries, BOTTOMEDGE)]
+)
 
-
+from vtkplotter.dolfin import plot
+plot(Theta)
 import ipdb; ipdb.set_trace()
 
