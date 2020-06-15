@@ -23,18 +23,22 @@ DIPOLE      = True  # T: Use source with 2 opposing currents. F: 1 current
 MESH_PTS    = 128
 
 class Rectangle(Rect):
-    def __init__(self, leftedge, bottomedge, rightedge, topedge):
-        self.leftedge = leftedge
-        self.bottomedge = bottomedge
-        self.rightedge = rightedge
-        self.topedge = topedge
+    def __init__(self, left, bottom, right, top):
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+        self.top = top
+        self.seg_coords = (left, bottom, right, top)
 
-        self.rect = Rect(fe.Point(leftedge, bottomedge),
-                         fe.Point(rightedge, topedge))
+        self.rect = Rect(fe.Point(left, bottom), fe.Point(right, top))
 
-        def is_near(self, x):
-            x, y, z = x
-            
+        def is_near(self, pt):
+            x, y = x
+            if (fe.near(y, self.bottom) or fe.near(y, self.top)) \
+               and (x > self.left and x < self.right):
+                return True
+            else:
+                return False
 
 
 class Simulation(object):

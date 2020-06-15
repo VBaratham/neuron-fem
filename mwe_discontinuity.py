@@ -108,18 +108,8 @@ for f in facets(mesh):
     elif y0 < DOLFIN_EPS and y1 < DOLFIN_EPS:
         boundaries[f] = BOTTOMEDGE
 
-# TEST
-# Define a function of ones on the mesh:
-# V = FunctionSpace(mesh, "CG", 1)
-# f = Function(V)
-# f.vector()[:] = 1.
-
-# dStest = dS(subdomain_data=boundaries)
-# perim = assemble(f*dStest(INTERFACE))
-# print("Perimeter from integrating 1 on the interface: {} (expected 0.8)".format(perim))
-# END TEST
-
-V = FunctionSpace(mesh, "Lagrange", 1)
+# V = FunctionSpace(mesh, "Lagrange", 1)
+V = FunctionSpace(mesh, "DG", 2)
 
 dx = Measure("dx")(subdomain_data=subdomains)
 dS = Measure("dS")(subdomain_data=boundaries)
@@ -134,13 +124,15 @@ LHS = inner(grad(Theta), grad(v)) * dx(OMEGA_E)
 LHS += inner(grad(Theta), grad(v)) * dx(OMEGA_I)
 LHS += inner(n('-'), grad(Theta('-'))) * v('-') * dS(INTERFACE)
 LHS -= inner(n('+'), grad(Theta('+'))) * v('+') * dS(INTERFACE)
-# LHS += 1.0 * v * ds(LEFTEDGE)
+Vm = 0.5
+# LHS += (Theta('+')*v('+') - Theta('-')*v('-') - Vm*v('-')) * dS(INTERFACE) # with DG, gives null solution (i.e. same as without)
+# LHS += 1.0 * v * ds(LEFTEDGE) # This works fine if you remove the leftedge DirichletBC
 
 # sol = Function(V)
-# solve(LHS == 0, Theta, solver_parameters={"newton_solver": {"absolute_tolerance": 6e-2}})
-solve(LHS == 0, Theta, [DirichletBC(V, 1.0, boundaries, LEFTEDGE),
-                        DirichletBC(V, 2.0, boundaries, BOTTOMEDGE)]
-)
+solve(LHS == 0, Theta, solver_parameters={"newton_solver": {"absolute_tolerance": 6e-2}})
+# solve(LHS == 0, Theta, [DirichletBC(V, 1.0, boundaries, LEFTEDGE),
+#                         DirichletBC(V, 2.0, boundaries, BOTTOMEDGE)]
+# )
 
 from vtkplotter.dolfin import plot
 plot(Theta)

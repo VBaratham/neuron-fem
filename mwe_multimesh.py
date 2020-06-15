@@ -1,5 +1,12 @@
 """
-MWE which creates separate meshes for the intra/extracellular domains
+MWE which creates separate meshes for the intra/extracellular domains,
+and attempts to use MultiMesh[Function[Space]] to specify the form
+
+https://fenicsproject.discourse.group/t/integration-on-part-of-multimesh/2453/4
+
+Hi Cécile, I'm interested in doing something like this, but trying to assess whether your mixed-dim framework is what I need. I describe my problem here: https://fenicsproject.discourse.group/t/prescribe-discontinuity-on-internal-boundary/3365/4. Essentially, the only part where I need to assemble a form that integrates variables on distinct meshes is to restrict the discontinuity in the solution across the boundary between the two meshes to a specified value.
+
+I am seeing some classes called "MultiMesh", "MultiMeshFunctionSpace", etc, which sound like they might 
 """
 
 
@@ -16,13 +23,13 @@ mesh_i = generate_mesh(Omega_i, 256)
 mesh_e = generate_mesh(Omega_e, 256)
 
 # The following is from https://github.com/cdaversin/mixed-dimensional-examples/blob/v2019.1/Poisson/poisson_lm_3D.py but doesn't work in fenics 2019.1
-# I = FunctionSpace(mesh_i, "Lagrange", 1)
-# E = FunctionSpace(mesh_e, "Lagrange", 1)
-# IE = MixedFunctionSpace(I, E)
+I = FunctionSpace(mesh_i, "Lagrange", 1)
+E = FunctionSpace(mesh_e, "Lagrange", 1)
+IE = MixedFunctionSpace(I, E)
 
-I = FiniteElement("Lagrange", mesh_i.ufl_cell(), 1)
-E = FiniteElement("Lagrange", mesh_e.ufl_cell(), 1)
-IE = FunctionSpace(mesh_e, I*E) # Not sure if this will work since it uses mesh_e
+# I = FiniteElement("Lagrange", mesh_i.ufl_cell(), 1)
+# E = FiniteElement("Lagrange", mesh_e.ufl_cell(), 1)
+# IE = FunctionSpace(mesh_e, I*E) # Not sure if this will work since it uses mesh_e
 
 # Mark boundaries of Omega_e (subdomains of \partial \Omega_e; \Omega_i is all one domain)
 INTERFACE = 3
@@ -37,6 +44,8 @@ for f in facets(mesh_e):
     on_vert_edge = lambda x, y: (near(x, .2) or near(x, .4)) and y > .2 and y < .4
     on_horiz_edge = lambda x, y: (near(y, .2) or near(y, .4)) and x > .2 and x < .4
     on_edge = lambda x, y: on_vert_edge(x, y) or on_horiz_edge(x, y)
+    # TODO: we are now cutting corners - check that both endpoints are on any edge,
+    # not necessarily the same edge
     if on_edge(x0, y0) and on_edge(x1, y1):
         boundaries[f] = INTERFACE
     elif x0 < DOLFIN_EPS and x1 < DOLFIN_EPS:

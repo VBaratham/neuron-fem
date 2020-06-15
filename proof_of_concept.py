@@ -12,27 +12,30 @@ with:
     \Gamma is the cell membrane). But for this proof of concept, the values
     are taken to be a constant
   - \rho_e = 0 (no extracellular current sources)
+  - IMPORTANT: An added Lagrange term to impose the constraint that the integral
+    of \Theta_e be 0 in the solution domain. This guarantees uniqueness of the
+    solution, but it's not clear to me what it means exactly
 """
 import matplotlib
 matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
 import fenics as fe
 from mshr import Box, Cylinder, generate_mesh, Rectangle, Circle
-import matplotlib.pyplot as plt
 
 BOX_SIZE = 1
-CYL_X, CYL_Y, CYL_Z1, CYL_Z2 = 0.5, 0.5, 0.1, 0.3
-CYL_R = 0.05
-MESH_PTS = 256
-CONDUCTIVITY = 0.3 # S/m
+CYL_X, CYL_Y, CYL_Z1, CYL_Z2 = 0.5, 0.5, 0.2, 0.6
+CYL_R = 0.1
+MESH_PTS = 40
+CONDUCTIVITY = 30 # S/m
 CURRENT = 0.01 # idk what units
 
 # Define solution domain
-# box = Box(fe.Point(0, 0, 0), fe.Point(BOX_SIZE, BOX_SIZE, BOX_SIZE))
-# cylinder = Cylinder(fe.Point(CYL_X, CYL_Y, CYL_Z1), fe.Point(CYL_X, CYL_Y, CYL_Z1), CYL_R, CYL_R)
+box = Box(fe.Point(0, 0, 0), fe.Point(BOX_SIZE, BOX_SIZE, BOX_SIZE))
+cylinder = Cylinder(fe.Point(CYL_X, CYL_Y, CYL_Z1), fe.Point(CYL_X, CYL_Y, CYL_Z2), CYL_R, CYL_R)
 
 # DEBUG
-box = Rectangle(fe.Point(0, 0), fe.Point(BOX_SIZE, BOX_SIZE))
-cylinder = Circle(fe.Point(CYL_X, CYL_Y), CYL_R)
+# box = Rectangle(fe.Point(0, 0), fe.Point(BOX_SIZE, BOX_SIZE))
+# cylinder = Circle(fe.Point(CYL_X, CYL_Y), CYL_R)
 # END DEBUG
 
 domain = box - cylinder
@@ -45,7 +48,7 @@ mesh = generate_mesh(domain, MESH_PTS)
 # Variables defined below are named exactly as in eq (A.1) (see comment at top of file)
 
 # Create (scalar) function space for the solution domain. Try 'P' as the element family?
-Omega = fe.FunctionSpace(mesh, 'CG', 1)
+Omega = fe.FunctionSpace(mesh, 'CG', 2)
 
 # Define a function for the boundary term.
 # The function should return `CURRENT` on the cylinder, and 0 on the box
@@ -71,7 +74,7 @@ class BoundaryVals(fe.UserExpression):
             value[0] = CURRENT
         else:
             value[0] = 0
-boundary = BoundaryVals(degree=1)
+boundary = BoundaryVals(degree=2)
 # boundary = fe.Expression('(x[0] - 50)*(x[0] - 50) + (x[1] - 10)*(x[1] - 10) - 25 < tol ? cur : 0', degree=1, tol=1e-7, cur=CURRENT)
 
 # Define the variational problem
@@ -84,9 +87,10 @@ LHS = sigma * fe.inner(fe.grad(Theta), fe.grad(v)) * fe.dx - boundary * v * fe.d
 # we use 0 as the RHS because
 #  - There are no sources (\rho = 0)
 #  - The Neumann condition on \partial\Theta_N is combined with the I_m term on the LHS
-fe.solve(LHS == 0, Theta)#, solver_parameters={"newton_solver": {"relative_tolerance": 3.5}})
+fe.solve(LHS == 0, Theta, solver_parameters={"newton_solver": {"absolute_tolerance": 6.5e-7}})
 
 # Plot solution
-fe.plot(Theta, "Solution")
-plt.show()
+# fe.plot(Theta, "Solution")
+# plt.show()
+import ipdb; ipdb.set_trace()
 
